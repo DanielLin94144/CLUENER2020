@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """ Named entity recognition fine-tuning: utilities to work with CLUENER task. """
 import torch
 import logging
@@ -20,6 +21,7 @@ class InputExample(object):
         self.guid = guid
         self.text_a = text_a
         self.labels = labels
+
 
     def __repr__(self):
         return str(self.to_json_string())
@@ -120,6 +122,9 @@ def convert_examples_to_features(examples,label_list,max_seq_length,tokenizer,
             segment_ids = [cls_token_segment_id] + segment_ids
 
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
+
+
+        
         # The mask has 1 for real tokens and 0 for padding tokens. Only real
         # tokens are attended to.
         input_mask = [1 if mask_padding_with_zero else 0] * len(input_ids)
@@ -154,45 +159,69 @@ def convert_examples_to_features(examples,label_list,max_seq_length,tokenizer,
                                       segment_ids=segment_ids, label_ids=label_ids))
     return features
 
+"""
+only use cner data format in AI cup
+### update ###
+1) train, dev, test set name
+e.g.:  "train.char.bmes" -> "train_2.data"
 
+2) the labels in _create_examples, we don't use BMES format
+
+3) get_label list are not the same
+
+4) because the article length exceed 512, add a new position_label "{}_{}".format(article_ind,position_in_article)
+"""
 class CnerProcessor(DataProcessor):
     """Processor for the chinese ner data set."""
 
     def get_train_examples(self, data_dir):
         """See base class."""
-        return self._create_examples(self._read_text(os.path.join(data_dir, "train.char.bmes")), "train")
+        return self._create_examples(self._read_text(os.path.join(data_dir, "train_2_revised.data")), "train")
 
     def get_dev_examples(self, data_dir):
         """See base class."""
-        return self._create_examples(self._read_text(os.path.join(data_dir, "dev.char.bmes")), "dev")
+        return self._create_examples(self._read_text(os.path.join(data_dir, "development_2.data")), "dev")
 
     def get_test_examples(self, data_dir):
         """See base class."""
-        return self._create_examples(self._read_text(os.path.join(data_dir, "test.char.bmes")), "test")
+        return self._create_examples(self._read_text(os.path.join(data_dir, "test_2_revised.data")), "test")
 
     def get_labels(self):
         """See base class."""
+        """
         return ["X",'B-CONT','B-EDU','B-LOC','B-NAME','B-ORG','B-PRO','B-RACE','B-TITLE',
                 'I-CONT','I-EDU','I-LOC','I-NAME','I-ORG','I-PRO','I-RACE','I-TITLE',
                 'O','S-NAME','S-ORG','S-RACE',"[START]", "[END]"]
+        """
+        return ["X",
+                'B-name','B-location','B-time','B-contact','B-ID','B-profession','B-biomarker','B-family',
+                'B-clinical_event','B-special_skills','B-unique_treatment','B-account','B-organization','B-education',
+                'B-money','B-belonging_mark', 'B-med_exam', 'B-others', 
+                'I-name','I-location','I-time','I-contact','I-ID','I-profession','I-biomarker','I-family',
+                'I-clinical_event','I-special_skills','I-unique_treatment','I-account','I-organization','I-education',
+                'I-money','I-belonging_mark', 'I-med_exam', 'I-others',
+                'O',"[START]", "[END]"]
 
     def _create_examples(self, lines, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
         for (i, line) in enumerate(lines):
-            if i == 0:
-                continue
+            #if i == 0:
+            #    continue
             guid = "%s-%s" % (set_type, i)
             text_a= line['words']
             # BIOS
             labels = []
+
             for x in line['labels']:
+                """
                 if 'M-' in x:
                     labels.append(x.replace('M-','I-'))
                 elif 'E-' in x:
                     labels.append(x.replace('E-', 'I-'))
                 else:
-                    labels.append(x)
+                """
+                labels.append(x)
             examples.append(InputExample(guid=guid, text_a=text_a, labels=labels))
         return examples
 

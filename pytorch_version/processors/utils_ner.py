@@ -47,27 +47,27 @@ class DataProcessor(object):
 
     @classmethod
     def _read_text(self,input_file):
-        lines = []
-        with open(input_file,'r') as f:
-            words = []
-            labels = []
-            for line in f:
-                if line.startswith("-DOCSTART-") or line == "" or line == "\n":
-                    if words:
-                        lines.append({"words":words,"labels":labels})
-                        words = []
-                        labels = []
-                else:
-                    splits = line.split(" ")
-                    words.append(splits[0])
-                    if len(splits) > 1:
-                        labels.append(splits[-1].replace("\n", ""))
+            lines = []
+            with open(input_file,'r') as f:
+                words = []
+                labels = []
+                for line in f:
+                    if line.startswith("-DOCSTART-") or line == "" or line == "\n":
+                        if words:
+                            lines.append({"words":words,"labels":labels})
+                            words = []
+                            labels = []
                     else:
-                        # Examples could have no label for mode = "test"
-                        labels.append("O")
-            if words:
-                lines.append({"words":words,"labels":labels})
-        return lines
+                        splits = line.split(" ")
+                        words.append(splits[0])
+                        if len(splits) > 1:
+                            labels.append(splits[-1].replace("\n", ""))
+                        else:
+                            # Examples could have no label for mode = "test"
+                            labels.append("O")
+                if words:
+                    lines.append({"words":words,"labels":labels})
+            return lines
 
     @classmethod
     def _read_json(self,input_file):
@@ -75,8 +75,10 @@ class DataProcessor(object):
         with open(input_file,'r') as f:
             for line in f:
                 line = json.loads(line.strip())
+                #####
                 text = line['text']
                 label_entities = line.get('label',None)
+                #####
                 words = list(text)
                 labels = ['O'] * len(words)
                 if label_entities is not None:

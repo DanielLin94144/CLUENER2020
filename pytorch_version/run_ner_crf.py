@@ -153,9 +153,9 @@ def train(args, train_dataset, model, tokenizer):
                 if args.local_rank in [-1, 0] and args.logging_steps > 0 and global_step % args.logging_steps == 0:
                     # Log metrics
                     print(" ")
-                    if args.local_rank == -1:
+                    #if args.local_rank == -1:
                         # Only evaluate when single GPU otherwise metrics may not average well
-                        evaluate(args, model, tokenizer)
+                        #evaluate(args, model, tokenizer)
                 if args.local_rank in [-1, 0] and args.save_steps > 0 and global_step % args.save_steps == 0:
                     # Save model checkpoint
                     output_dir = os.path.join(args.output_dir, "checkpoint-{}".format(global_step))
@@ -251,7 +251,10 @@ def predict(args, model, tokenizer, prefix=""):
     test_dataset = load_and_cache_examples(args, args.task_name, tokenizer, data_type='test')
     # Note that DistributedSampler samples randomly
     test_sampler = SequentialSampler(test_dataset) if args.local_rank == -1 else DistributedSampler(test_dataset)
-    test_dataloader = DataLoader(test_dataset, sampler=test_sampler, batch_size=1, collate_fn=collate_fn)
+    
+    #test_dataloader = DataLoader(test_dataset, sampler=test_sampler, batch_size=1, collate_fn=collate_fn)
+    test_dataloader = DataLoader(test_dataset, batch_size=1, collate_fn=collate_fn)
+    
     # Eval!
     logger.info("***** Running prediction %s *****", prefix)
     logger.info("  Num examples = %d", len(test_dataset))
@@ -283,10 +286,18 @@ def predict(args, model, tokenizer, prefix=""):
         results.append(json_d)
         pbar(step)
     logger.info("\n")
+    
+    import pandas as pd
+    result = pd.DataFrame(results)
+    result.to_csv('result2.csv')
+    
     with open(output_predict_file, "w") as writer:
         for record in results:
             writer.write(json.dumps(record) + '\n')
-    if args.task_name == 'cluener':
+    
+    if args.task_name == 'cner':
+        
+        
         output_submit_file = os.path.join(pred_output_dir, prefix, "test_submit.json")
         test_text = []
         with open(os.path.join(args.data_dir,"test.json"), 'r') as fr:
@@ -367,6 +378,7 @@ def load_and_cache_examples(args, task, tokenizer, data_type='train'):
     return dataset
 
 
+
 def main():
     args = get_argparse().parse_args()
 
@@ -408,12 +420,20 @@ def main():
     args.task_name = args.task_name.lower()
     if args.task_name not in processors:
         raise ValueError("Task not found: %s" % (args.task_name))
+    
+    
+    
+    
+    ### processor ###
     processor = processors[args.task_name]()
     label_list = processor.get_labels()
-    args.id2label = {i: label for i, label in enumerate(label_list)}
+    ### retrun all the "BIOS-entity"
+    args.id2label = {i: label for i, label in enumerate(label_list)} 
     args.label2id = {label: i for i, label in enumerate(label_list)}
     num_labels = len(label_list)
 
+    
+    
     # Load pretrained model and tokenizer
     if args.local_rank not in [-1, 0]:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
@@ -453,6 +473,10 @@ def main():
         torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
     # Evaluation
     results = {}
+    
+    args.do_eval = False
+    
+    
     if args.do_eval and args.local_rank in [-1, 0]:
         tokenizer = tokenizer_class.from_pretrained(args.output_dir, do_lower_case=args.do_lower_case)
         checkpoints = [args.output_dir]
@@ -490,7 +514,6 @@ def main():
             model = model_class.from_pretrained(checkpoint, config=config)
             model.to(args.device)
             predict(args, model, tokenizer, prefix=prefix)
-
 
 if __name__ == "__main__":
     main()
